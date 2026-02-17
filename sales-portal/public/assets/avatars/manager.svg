@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#e2e8f0"/>
+  <circle cx="100" cy="70" r="50" fill="#475569"/>
+  <path d="M20 180 C20 130 60 130 100 130 C140 130 180 130 180 180" fill="#1e293b"/>
+  <!-- Blazer Lapels -->
+  <path d="M100 130 L100 180" stroke="#fff" stroke-width="2"/>
+  <path d="M100 130 L70 180" stroke="#fff" stroke-width="2"/>
+  <path d="M100 130 L130 180" stroke="#fff" stroke-width="2"/>
+  <text x="50%" y="190" text-anchor="middle" fill="#fff" font-size="14" font-family="Arial">Manager</text>
+</svg>

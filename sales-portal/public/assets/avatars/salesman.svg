@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#f1f5f9"/>
+  <circle cx="100" cy="70" r="50" fill="#64748b"/>
+  <path d="M30 180 C30 140 70 140 100 140 C130 140 170 140 170 180" fill="#3b82f6"/>
+  <text x="50%" y="190" text-anchor="middle" fill="#fff" font-size="14" font-family="Arial">Salesman</text>
+</svg>

@@ -1,0 +1,248 @@
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from sqlalchemy.orm import Session
+from database import get_db
+from auth import models, utils, schemas
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+import traceback
+import shutil
+import os
+import uuid
+from database import engine
+from utils import dynamic_tables
+
+router = APIRouter(
+    prefix="/auth",
+    tags=["Authentication"]
+)
+
+# Shared Dependency for getting current user (Circular dependency avoidance)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = utils.jwt.decode(token, utils.SECRET_KEY, algorithms=[utils.ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except utils.JWTError:
+        raise credentials_exception
+    
+    user = db.query(models.User).filter(models.User.email == username).first()
+    if user is None:
+        raise credentials_exception
+    return user
+
+@router.post("/register", response_model=schemas.Token)
+def register(
+    company_name: str = Form(...),
+    industry: str = Form(...),
+    email: str = Form(...),
+    full_name: str = Form(...),
+    password: str = Form(...),
+    phone: str = Form(None),
+    address: str = Form(None),
+    company_size: str = Form(None),
+    logo: UploadFile = File(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        # 1. Check if user already exists
+        user_exists = db.query(models.User).filter(models.User.email == email).first()
+        if user_exists:
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered"
+            )
+        
+        # 2. Handle Logo Upload
+        logo_url = None
+        print(f"DEBUG: Received logo: {logo}")
+        if logo:
+            print(f"DEBUG: Logo filename: {logo.filename}")
+            try:
+                # Create static/logos directory if not exists (redundant if main.py does it but safe)
+                os.makedirs("static/logos", exist_ok=True)
+                
+                file_extension = logo.filename.split(".")[-1]
+                filename = f"{uuid.uuid4()}.{file_extension}"
+                file_path = f"static/logos/{filename}"
+                
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(logo.file, buffer)
+                
+                logo_url = f"/static/logos/{filename}"
+            except Exception as e:
+                print(f"Error saving logo: {e}")
+                # Continue without logo if upload fails? Or raise error? 
+                # Let's log and continue for now.
+
+        # 3. Create Company
+        new_company = models.Company(
+            name=company_name,
+            industry=industry,
+            phone=phone,
+            address=address,
+            company_size=company_size,
+            logo_url=logo_url
+        )
+        db.add(new_company)
+        db.commit()
+        db.refresh(new_company)
+        
+        # 4. Create Admin User (Manager)
+        hashed_password = utils.get_password_hash(password)
+        new_user = models.User(
+            email=email,
+            full_name=full_name,
+            hashed_password=hashed_password,
+            role="manager",
+            company_id=new_company.id
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        # Dynamic table creation removed. Salesmen reuse Users table.
+
+        # 6. Generate Token
+        access_token = utils.create_access_token(
+            data={"sub": new_user.email, "role": new_user.role, "company_id": new_company.id}
+        )
+        
+        return {
+            "access_token": access_token, 
+            "token_type": "bearer",
+            "user": {
+                "id": new_user.id,
+                "name": new_user.full_name,
+                "email": new_user.email,
+                "role": new_user.role
+            },
+            "company": {
+                "name": new_company.name,
+                "id": new_company.id,
+                "logo_url": new_company.logo_url
+            }
+        }
+    except HTTPException:
+        raise 
+    except Exception as e:
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal Server Error: {str(e)}"
+        )
+
+import sys
+
+@router.post("/login")
+def login(login_data: schemas.LoginRequest, db: Session = Depends(get_db)):
+    print(f"DEBUG: Login attempt for {login_data.email}")
+    print(f"DEBUG: Login payload: {login_data.dict()}")
+    sys.stdout.flush()
+    
+    user = db.query(models.User).filter(models.User.email == login_data.email).first()
+    if not user:
+        print(f"DEBUG: User not found: {login_data.email}")
+        sys.stdout.flush()
+        raise HTTPException(status_code=400, detail="Incorrect email or password")
+    
+    if not utils.verify_password(login_data.password, user.hashed_password):
+        print(f"DEBUG: Password verification failed for {login_data.email}")
+        print(f"DEBUG: Hashed in DB: {user.hashed_password}")
+        print(f"DEBUG: Input Password: {login_data.password}")
+        sys.stdout.flush()
+        raise HTTPException(status_code=400, detail="Incorrect email or password")
+        
+    access_token = utils.create_access_token(
+        data={"sub": user.email, "role": user.role, "company_id": user.company_id}
+    )
+    
+    company_data = None
+    if user.company:
+        company_data = {
+            "name": user.company.name,
+            "id": user.company.id,
+            "logo_url": user.company.logo_url
+        }
+
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "name": user.full_name,
+            "email": user.email,
+            "role": user.role
+        },
+        "company": company_data
+    }
+
+@router.get("/companies", response_model=list[schemas.CompanyResponse])
+def get_companies(db: Session = Depends(get_db)):
+    return db.query(models.Company).all()
+
+@router.post("/register-salesman", response_model=schemas.Token)
+def register_salesman(salesman_data: schemas.SalesmanRegisterRequest, db: Session = Depends(get_db)):
+    try:
+        # Check if user already exists
+        user_exists = db.query(models.User).filter(models.User.email == salesman_data.email).first()
+        if user_exists:
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered"
+            )
+
+        # Check if Company exists
+        company = db.query(models.Company).filter(models.Company.id == salesman_data.company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail="Company not found")
+
+        # Create Salesman User
+        hashed_password = utils.get_password_hash(salesman_data.password)
+        new_user = models.User(
+            email=salesman_data.email,
+            full_name=salesman_data.full_name,
+            hashed_password=hashed_password,
+            role="salesman",
+            employee_id=salesman_data.employee_id,
+            company_id=salesman_data.company_id
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+
+        # Dynamic table insertion removed. Salesmen reuse Users table.
+
+        # Generate Token
+        access_token = utils.create_access_token(
+            data={"sub": new_user.email, "role": new_user.role, "company_id": new_user.company_id}
+        )
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": new_user.id,
+                "name": new_user.full_name,
+                "email": new_user.email,
+                "role": new_user.role
+            },
+            "company": {
+                "name": company.name,
+                "id": company.id,
+                "logo_url": company.logo_url
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

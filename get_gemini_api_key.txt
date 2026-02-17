@@ -1,0 +1,29 @@
+# How to Get a Google Gemini API Key
+
+1.  **Go to Google AI Studio:**
+    Visit [https://aistudio.google.com/](https://aistudio.google.com/)
+
+2.  **Sign In:**
+    Sign in with your Google account. you may need to accept the terms of service.
+
+3.  **Get API Key:**
+    - Look for the button "Get API key" (usually in the top left or left sidebar).
+    - Click "Create API key".
+    - You can choose "Create API key in new project" (this is easiest).
+
+4.  **Copy Key:**
+    - A popup will appear with your new API key.
+    - Click the "Copy" button.
+
+5.  **Paste into Project:**
+    - Open `c:\Users\lenovo\Desktop\IVPROJECT\sales-backend\.env`
+    - Find the line: `GEMINI_API_KEY=YOUR_API_KEY_HERE`
+    - Replace `YOUR_API_KEY_HERE` with the key you just copied.
+    
+    Example:
+    `GEMINI_API_KEY=AIzaSyD7...`
+
+6.  **Restart Backend:**
+    - Go to your terminal running the backend.
+    - Press `Ctrl+C` to stop it.
+    - Run `python main.py` to start it again.

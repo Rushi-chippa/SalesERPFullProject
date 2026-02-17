@@ -1,0 +1,50 @@
+# Analytics Feature Implementation Map
+
+This document outlines where each suggested data analytics feature should be implemented within the Frontend application.
+
+## 1. Executive Dashboard (src/pages/Dashboard.js)
+**Purpose**: High-level overview for Admins/Managers.
+- **[Feature] Real-time KPI Cards**:
+  - Add "Revenue Run Rate" card next to Total Revenue.
+  - Add "Top Product Mover" card.
+- **[Feature] Sales Funnel Visualization**:
+  - Add a new "Conversion Funnel" chart widget below the main sales trend chart.
+
+## 2. Advanced Analytics Hub (src/pages/Analytics.js)
+**Purpose**: Deep-dive analysis tools.
+- **[Feature] Regional Heatmap**:
+  - Implement a map visualization or a region-based bar chart here.
+- **[Feature] Seasonality Detection**:
+  - Add a "Year-over-Year" comparison line chart.
+- **[Feature] Product Affinity (Market Basket)**:
+  - Add a "Commonly Bought Together" table or network graph.
+- **[Feature] Customer Segments (RFM)**:
+  - Add a scatter plot visualizing Customer Value vs. Recency.
+
+## 3. Product Management (src/pages/Products.js)
+**Purpose**: Operational inventory management.
+- **[Feature] ABC Analysis**:
+  - Add a "Class" column (A/B/C) to the product table.
+  - Add a filter to "Show Class A Products Only".
+- **[Feature] Slow-Moving Inventory**:
+  - Add a "Stock Age" badge (e.g., "Inactive 90+ Days" in red) to relevant rows.
+
+## 4. Salesmen Directory (src/pages/Salesmen.js)
+**Purpose**: Admin view of sales team.
+- **[Feature] Sales Consistency Score**:
+  - Add a "Consistency" column (Standard Deviation metric) to the salesman list table.
+- **[Feature] Activity vs Outcome**:
+  - Add a "Conversion Rate" column next to Total Sales.
+
+## 5. Salesman Personal View (src/pages/Performance.js & SalesmanDashboard.js)
+**Purpose**: Individual performance tracking.
+- **[Feature] Win Rate Analysis**:
+  - Add a "Win Rate" gauge chart to their personal dashboard.
+- **[Feature] Next Best Action**:
+  - Add a "Recommended Products to Pitch" list based on their customers' buying patterns.
+
+## 6. Reports Section (src/pages/Reports.js)
+**Purpose**: Exportable tabular data.
+- **[Feature] Churn Risk Report**:
+  - Create a new report tab: "At-Risk Customers".
+  - List customers who haven't purchased in > X days but have high historical value.
